@@ -48,7 +48,7 @@ start:
 	movw %ax, %ds
 	movw $INITSEG, ax 
 	movw %ax, %es 
-	movw $0x100, %cx
+	movw $0x100, %cx	# 256 Words = 512 Bytes
 	xorw %si, %si
 	xorw %di, %di
 	rep
@@ -85,14 +85,14 @@ ok_load_setup:
 
 # Get disk drive parameters, specifically nr of sectors/track
 
-	mov	dl, #0x00
-	mov	ax, #0x0800		# AH=8 is get drive parameters
+	mov $0x00, %dl
+	mov $0x0800, ax 		# AH=8 is get drive parameters
 	int	0x13
-	mov	ch, #0x00
-	seg cs
-	mov	sectors, cx     # [sectors] = sectors of driver
-	mov	ax, #INITSEG
-	mov	es, ax
+	mov	$0x00, %ch 
+	seg %cs
+	mov %cx, $sectors		# [sectors] = sectors of driver
+	mov	$INITSEG, %ax 
+	mov	%ax, %es 
 
 # Print some inane message
 
@@ -141,7 +141,7 @@ root_defined:
 # the setup-routine loaded directly after
 # the bootblock:
 
-	jmpi 0, SETUPSEG
+	ljmp $SETUPSEG, 0
 
 # This routine loads the system at address 0x10000, making sure
 # no 64kB boundaries are crossed. We try to load it as fast as
