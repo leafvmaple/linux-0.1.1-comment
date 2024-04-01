@@ -20,10 +20,10 @@ startup_32:
 	mov %ax, %es
 	mov %ax, %fs
 	mov %ax, %gs
-	lss _stack_start, %esp
+	lss _stack_start, %esp	; esp=&user_stack[PAGE_SIZE>>2], ss=0x10(selector=2)
 	call setup_idt
 	call setup_gdt
-	movl $0x10, %eax		; reload all the segment registers
+	movl $0x10, %eax	; reload all the segment registers
 	mov %ax, %ds		; after changing gdt. CS was already
 	mov %ax, %es		; reloaded in 'setup_gdt'
 	mov %ax, %fs
@@ -40,11 +40,11 @@ startup_32:
  * 486 users probably want to set the NE (#5) bit also, so as to use
  * int 16 for math errors.
  */
-	movl %cr0,%eax		# check math chip
-	andl $0x80000011,%eax	# Save PG,PE,ET
+	movl %cr0, %eax		# check math chip
+	andl $0x80000011, %eax	# Save PG,PE,ET
 /* "orl $0x10020,%eax" here for 486 might be good */
-	orl $2,%eax		# set MP
-	movl %eax,%cr0
+	orl $2, %eax		# set MP TODO: Why
+	movl %eax, %cr0
 	call check_x87
 	jmp after_page_tables
 
@@ -54,11 +54,11 @@ startup_32:
 check_x87:
 	fninit
 	fstsw %ax
-	cmpb $0,%al
+	cmpb $0, %al
 	je 1f			/* no coprocessor: have to set bits */
-	movl %cr0,%eax
-	xorl $6,%eax		/* reset MP, set EM */
-	movl %eax,%cr0
+	movl %cr0, %eax
+	xorl $6, %eax		/* reset MP, set EM */
+	movl %eax, %cr0
 	ret
 .align 2
 1:	.byte 0xDB,0xE4		/* fsetpm for 287, ignored by 387 */
@@ -75,18 +75,19 @@ check_x87:
  *  sure everything is ok. This routine will be over-
  *  written by the page tables.
  */
+/* TODO */
 setup_idt:
-	lea ignore_int,%edx
-	movl $0x00080000,%eax
-	movw %dx,%ax		/* selector = 0x0008 = cs */
-	movw $0x8E00,%dx	/* interrupt gate - dpl=0, present */
+	lea ignore_int, %edx
+	movl $0x00080000, %eax
+	movw %dx, %ax		/* selector = 0x0008 = cs */
+	movw $0x8E00, %dx	/* interrupt gate - dpl=0, present */
 
-	lea _idt,%edi
-	mov $256,%ecx
+	lea _idt, %edi
+	mov $256, %ecx
 rp_sidt:
-	movl %eax,(%edi)
-	movl %edx,4(%edi)
-	addl $8,%edi
+	movl %eax, (%edi)
+	movl %edx, 4(%edi)
+	addl $8, %edi
 	dec %ecx
 	jne rp_sidt
 	lidt idt_descr
@@ -220,19 +221,19 @@ setup_paging:
 .align 2
 .word 0
 idt_descr:
-	.word 256*8-1		# idt contains 256 entries
+	.word 256 * 8 - 1		# idt contains 256 entries
 	.long _idt
 .align 2
 .word 0
 gdt_descr:
-	.word 256*8-1		# so does gdt (not that that's any
-	.long _gdt		# magic number, but it works for me :^)
+	.word 256 * 8 - 1		# 0x800 - 1, so does gdt (not that that's any
+	.long _gdt				# magic number, but it works for me :^)
 
 	.align 3
-_idt:	.fill 256,8,0		# idt is uninitialized
+_idt:	.fill 256, 8, 0		# idt is uninitialized
 
 _gdt:	.quad 0x0000000000000000	/* NULL descriptor */
-	.quad 0x00c09a0000000fff	/* 16Mb */
-	.quad 0x00c0920000000fff	/* 16Mb */
+	.quad 0x00c09a0000000fff	/* 16Mb limit=0x0FFF, base=0x0000, read/exec, granularity=4096, 386 */
+	.quad 0x00c0920000000fff	/* 16Mb limit=0x0FFF, base=0x0000, read/write, granularity=4096, 386 */
 	.quad 0x0000000000000000	/* TEMPORARY - don't use */
-	.fill 252,8,0			/* space for LDT's and TSS's etc */
+	.fill 252, 8, 0			/* space for LDT's and TSS's etc */

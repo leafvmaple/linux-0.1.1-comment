@@ -29,7 +29,7 @@
 .set SYSSEG, 0x1000					# system loaded at 0x10000 (65536).
 .set ENDSEG, SYSSEG + SYSSIZE		# where to stop loading
 
-.globl begtext, begdata, begbss, endtext, enddata, endbss
+.globl begtext, begdata, begbss, endtext, enddata, endbss, start
 .text
 begtext:
 .data
@@ -42,7 +42,6 @@ begbss:
 #		0x301 - first partition on first drive etc
 .set ROOT_DEV, 0x306
 
-entry start
 start:
 # ||| copy [0x7c00] 512B to [0x90000]
 	movw $BOOTSEG, ax
