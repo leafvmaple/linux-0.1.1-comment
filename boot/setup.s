@@ -14,9 +14,9 @@
 
 # NOTE; These had better be the same as in bootsect.s;
 
-INITSEG  = 0x9000	# we move boot here - out of the way
-SYSSEG   = 0x1000	# system loaded at 0x10000 (65536).
-SETUPSEG = 0x9020	# this is the current segment
+.set INITSEG, 0x9000	# we move boot here - out of the way
+.set SYSSEG, 0x1000		# system loaded at 0x10000 (65536).
+.set SETUPSEG, 0x9020	# this is the current segment
 
 .globl begtext, begdata, begbss, endtext, enddata, endbss
 .text
@@ -33,73 +33,73 @@ start:
 # ok, the read went well so we get current cursor position and save it for
 # posterity.
 
-	mov	ax, $INITSEG	# this is done in bootsect already, but...
-	mov	ds, ax
-	mov	ah, $0x03	# read cursor pos
-	xor	bh, bh
-	int	0x10		# save it in known place, con_init fetches
-	mov	[0], dx		# save data to 0x90000.
+	mov $INITSEG, %ax, 	# this is done in bootsect already, but...
+	mov	%ax, %ds 
+	mov	$0x03, %ah 		# read cursor pos
+	xor	%bh, %bh
+	int	$0x10			# save it in known place, con_init fetches
+	mov	%dx, [0] 		# save data to 0x90000.
 
 # Get memory size (extended mem, kB)
 
-	mov	ah, $0x88
-	int	0x15
-	mov	[2], ax
+	mov $0x88, %ah 
+	int	$0x15
+	mov	%ax, [2]
 
 # Get video-card data:
 
-	mov	ah, $0x0f
-	int	0x10
-	mov	[4], bx		# bh = display page
-	mov	[6], ax		# al = video mode, ah = window width
+	mov	$0x0f, %ah 
+	int	$0x10
+	mov	%bx, [4] 		# bh = display page
+	mov	%ax, [6]		# al = video mode, ah = window width
 
 # check for EGA/VGA and some config parameters
 
-	mov	ah, $0x12
-	mov	bl, $0x10
-	int	0x10
-	mov	[8], ax
-	mov	[10], bx
-	mov	[12], cx
+	mov	$0x12, %ah 
+	mov	$0x10, %bl
+	int	$0x10
+	mov	%ax, [8] 
+	mov	%bx, [10]
+	mov	%cx, [12]
 
 # Get hd0 data
 
-	mov	ax, $0x0000
-	mov	ds, ax
-	lds	si, [4*0x41]
-	mov	ax, $INITSEG
-	mov	es, ax
-	mov	di, $0x0080
-	mov	cx, $0x10
+	mov $0x0000, %ax 
+	mov	%ax, %ds 
+	lds	[4*0x41], %si 
+	mov	$INITSEG, %ax 
+	mov	%ax, %es 
+	mov	$0x0080, %di 
+	mov	$0x10, %cx 
 	rep
 	movsb
 
 # Get hd1 data
 
-	mov	ax, $0x0000
-	mov	ds, ax
-	lds	si, [4*0x46]
-	mov	ax, $INITSEG
-	mov	es, ax
-	mov	di, $0x0090
-	mov	cx, $0x10
+	mov $0x0000, %ax 
+	mov	%ax, %ds 
+	lds	[4*0x46], %si 
+	mov	$INITSEG, %ax 
+	mov	%ax, %es 
+	mov	$0x0090, %di 
+	mov	$0x10, %cx 
 	rep
 	movsb
 
 # Check that there IS a hd1 :-)
 
-	mov	ax, $0x01500
-	mov	dl, $0x81
-	int	0x13
+	mov $0x01500, %ax 
+	mov	$0x81, %dl 
+	int	$0x13
 	jc	no_disk1
-	cmp	ah, $3
+	cmp	$3, %ah 
 	je	is_disk1
 no_disk1:
-	mov	ax, $INITSEG
-	mov	es, ax
-	mov	di, $0x0090
-	mov	cx, $0x10
-	mov	ax, $0x00
+	mov	$INITSEG, %ax 
+	mov	%ax, %es 
+	mov	$0x0090, %di 
+	mov	$0x10, %cx 
+	mov	$0x00, %ax 
 	rep
 	stosb
 is_disk1:
@@ -128,19 +128,19 @@ do_move:
 # then we load the segment descriptors
 
 end_move:
-	mov	ax, $SETUPSEG	# right, forgot this at first. didn't work :-)
-	mov	ds, ax
-	lidt idt_48		# load idt with 0,0
-	lgdt gdt_48		# load gdt with whatever appropriate
+	mov $SETUPSEG, %ax 	# right, forgot this at first. didn't work :-)
+	mov	%ax, %ds 
+	lidt idt_48			# load idt with 0,0
+	lgdt gdt_48			# load gdt with whatever appropriate
 
 # that was painless, now we enable A20
 
 	call empty_8042
-	mov	al, $0xD1		# command write
-	out	$0x64, al
+	mov	$0xD1, %al 		# command write
+	out	%al, $0x64, 
 	call empty_8042
-	mov	al, $0xDF		# A20 on
-	out	$0x60, al
+	mov	$0xDF, %al, 	# A20 on
+	out	%al, $0x60 
 	call empty_8042
 
 # well, that went ok, I hope. Now we have to reprogram the interrupts :-(
@@ -197,8 +197,8 @@ end_move:
 # the machine, and we probably couldn't proceed anyway.
 empty_8042:
 	.word 0x00eb, 0x00eb
-	in al, $0x64	# 8042 status port
-	test al, $2		# is input buffer full?
+	in $0x64, %al 	# 8042 status port
+	test $2, %al 	# is input buffer full?
 	jnz	empty_8042	# yes - loop
 	ret
 
@@ -221,7 +221,7 @@ idt_48:
 
 gdt_48:
 	.word	0x800			# gdt limit=2048, 256 GDT entries
-	.word	0x200 + gdt, 0x9	# gdt base = 0x90200 + [gdt]
+	.long	0x90200 + gdt 	# gdt base = 0x90200 + [gdt]
 	
 .text
 endtext:

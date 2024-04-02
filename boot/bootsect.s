@@ -68,7 +68,7 @@ go:	movw %cs, %ax
 # load the setup-sectors directly after the bootblock.
 # Note that 'es' is already set up.
 
-# ||| Load Cylinder[0] Head[0] Sector[2] 4 Sectors(2048B) to ES:BX [0x90200]
+# ||| Load Cylinder[0] Head[0] Sector[2] 4 Sectors(2KB) to ES:BX [0x90200, 0x90A00)
 load_setup:
 	movw $0x0080, %dx	# drive 0, head 0
 	movw $0x0002, %cx	# sector 2, track 0
