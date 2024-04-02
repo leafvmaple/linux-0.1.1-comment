@@ -52,7 +52,7 @@ start:
 	xorw %si, %si
 	xorw %di, %di
 	rep
-	movw
+	movsw
 	ljmp $INITSEG, $go	# jump to INITSEG:go -> cs=0x9000, ip=go
 
 go:	mov	%cs, %ax
@@ -68,14 +68,14 @@ go:	mov	%cs, %ax
 
 # ||| Load Cylinder[0] Head[0] Sector[2] 4 Sectors(2048B) to [0x90200]
 load_setup:
-	movb $0x0000, %dx	# drive 0, head 0
-	movb $0x0002, %cx	# sector 2, track 0
-	movb $0x0200, %bx	# address = 512, in INITSEG
-	movb $0x0200 + SETUPLEN, %ax	# service 2, nr of sectors
+	movw $0x0000, %dx	# drive 0, head 0
+	movw $0x0002, %cx	# sector 2, track 0
+	movw $0x0200, %bx	# address = 512, in INITSEG
+	movw $0x0200 + SETUPLEN, %ax	# service 2, nr of sectors
 	int	$0x13			# read it
 	jnc	ok_load_setup	# ok - continue
-	movb $0x0000, %dx
-	movb $0x0000, %ax	# reset the diskette
+	movw $0x0000, %dx
+	movw $0x0000, %ax	# reset the diskette
 	int	$0x13
 	jmp	load_setup
 
@@ -85,32 +85,32 @@ ok_load_setup:
 
 # Get disk drive parameters, specifically nr of sectors/track
 
-	mov $0x00, %dl
-	mov $0x0800, ax 		# AH=8 is get drive parameters
-	int	0x13
-	mov	$0x00, %ch 
-	seg %cs
-	mov %cx, $sectors		# [sectors] = sectors of driver
-	mov	$INITSEG, %ax 
-	mov	%ax, %es 
+	movb $0x00, %dl
+	movw $0x0800, %ax 		# AH=8 is get drive parameters
+	int	$0x13
+	movb $0x00, %ch 
+#	seg %cs
+	movw %cx, sectors		# [sectors] = sectors of driver
+	movw $INITSEG, %ax 
+	movw %ax, %es 
 
 # Print some inane message
 
-	mov	ah, #0x03		# read cursor pos
-	xor	bh, bh
-	int	0x10
+	movb $0x03, %ah			# read cursor pos
+	xor	%bh, %bh
+	int	$0x10
 	
-	mov	cx, #24
-	mov	bx, #0x0007		# page 0, attribute 7 (normal)
-	mov	bp, #msg1
-	mov	ax, #0x1301		# write string, move cursor
-	int	0x10
+	movw $24, %cx
+	mov $0x0007, %bx		# page 0, attribute 7 (normal)
+	mov	$msg1, %bp
+	mov	$0x1301, %ax 		# write string, move cursor
+	int	$0x10
 
 # ok, we've written the message, now
 # we want to load the system (at 0x10000)
 
-	mov	ax, #SYSSEG
-	mov	es, ax		# segment of 0x010000
+	mov	$SYSSEG, %ax
+	mov	%ax, %es			# segment of 0x010000
 	call read_it
 	call kill_motor
 
