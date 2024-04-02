@@ -2,18 +2,23 @@
 # if you want the ram-disk device, define this to be the
 # size in blocks.
 #
-RAMDISK = #-DRAMDISK=512
 
-AS86	=as86 -0 -a
-LD86	=ld86 -0
+LD      := ld
+LDFLAGS := -m elf_i386 -nostdlib
 
-AS	=gas
-LD	=gld
-LDFLAGS	=-s -x -M
-CC	=gcc $(RAMDISK)
-CFLAGS	=-Wall -O -fstrength-reduce -fomit-frame-pointer \
--fcombine-regs -mstring-insns
+CC	:= gcc
+CFLAGS := -g -fno-builtin -Wall -ggdb -march=i386 -m32 -gstabs -nostdinc -fno-stack-protector
+
+HOSTCC := gcc
+HOSTCFLAGS := -g -Wall -O2
+
 CPP	=cpp -nostdinc -Iinclude
+
+QEMU := qemu-system-i386
+TERMINAL :=gnome-terminal
+
+OBJDUMP := objdump
+OBJCOPY := objcopy
 
 #
 # ROOT_DEV specifies the default root-device when making the image.
@@ -31,23 +36,34 @@ LIBS	=lib/lib.a
 	$(CC) $(CFLAGS) \
 	-nostdinc -Iinclude -S -o $*.s $<
 .s.o:
-	$(AS) -c -o $*.o $<
+	$(CC) $(CFLAGS) -c -Os -o $*.o $<
 .c.o:
 	$(CC) $(CFLAGS) \
 	-nostdinc -Iinclude -c -o $*.o $<
 
 all:	Image
 
-Image: boot/bootsect boot/setup tools/system tools/build
-	tools/build boot/bootsect boot/setup tools/system $(ROOT_DEV) > Image
-	sync
+Image: boot/bootsect.bin tools/sign #boot/setup tools/system tools/build
+#	tools/build boot/bootsect boot/setup tools/system $(ROOT_DEV) > Image
+#	sync
+	tools/sign boot/bootsect.bin $@
 
 disk: Image
-	dd bs=8192 if=Image of=/dev/PS0
+#	dd bs=8192 if=Image of=/dev/PS0
+	dd if=/dev/zero of=$@ count=10000
+	dd if=Image of=$@ conv=notrunc
+#	dd if=bin/kernel.bin of=$@ seek=1 conv=notrunc
+
+debug: disk
+	$(QEMU) -S -s -parallel stdio -hda $< -serial null &
+	sleep 2
+	$(TERMINAL) -e "gdb -q -x tools/gdbinit"
 
 tools/build: tools/build.c
-	$(CC) $(CFLAGS) \
-	-o tools/build tools/build.c
+	$(HOSTCC) $(HOSTCFLAGS) -o tools/build tools/build.c
+
+tools/sign: tools/sign.c
+	$(HOSTCC) $(HOSTCFLAGS) -o $@ $^
 
 boot/head.o: boot/head.s
 
@@ -82,12 +98,15 @@ lib/lib.a:
 	(cd lib; make)
 
 boot/setup: boot/setup.s
-	$(AS86) -o boot/setup.o boot/setup.s
+	$(CC) $(CFLAGS) -Os -nostdinc -o boot/setup.o boot/setup.s
 	$(LD86) -s -o boot/setup boot/setup.o
 
-boot/bootsect:	boot/bootsect.s
-	$(AS86) -o boot/bootsect.o boot/bootsect.s
-	$(LD86) -s -o boot/bootsect boot/bootsect.o
+boot/bootsect.bin:	boot/bootsect.o tools/sign
+#	$(CC) -o boot/bootsect.o boot/bootsect.s
+#	$(LD86) -s -o boot/bootsect boot/bootsect.o
+	$(LD) $(LDFLAGS) -N -e _start -Ttext 0x7C00 $< -o boot/bootsect
+	$(OBJDUMP) -S boot/bootsect > boot/bootsect.asm
+	$(OBJCOPY) -S -O binary boot/bootsect $@
 
 tmp.s:	boot/bootsect.s tools/system
 	(echo -n "SYSSIZE = (";ls -l tools/system | grep system \
@@ -95,7 +114,7 @@ tmp.s:	boot/bootsect.s tools/system
 	cat boot/bootsect.s >> tmp.s
 
 clean:
-	rm -f Image System.map tmp_make core boot/bootsect boot/setup
+	rm -f Image System.map tmp_make core boot/bootsect boot/bootsect.bin boot/setup
 	rm -f init/*.o tools/system tools/build boot/*.o
 	(cd mm;make clean)
 	(cd fs;make clean)
