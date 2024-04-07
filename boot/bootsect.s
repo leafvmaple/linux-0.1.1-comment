@@ -46,16 +46,16 @@ begbss:
 
 start:
 # ||| copy [0x7c00] 512B to [0x90000]
-	movw $BOOTSEG, %ax
-	movw %ax, %ds
-	movw $INITSEG, %ax 
-	movw %ax, %es 
-	movw $0x100, %cx	# 256 Words = 512 Bytes
-	xorw %si, %si
-	xorw %di, %di
+	movw $BOOTSEG , %ax
+	movw %ax      , %ds
+	movw $INITSEG , %ax 
+	movw %ax      , %es 
+	movw $0x100   , %cx	# 256 Words = 512 Bytes
+	xorw %si      , %si
+	xorw %di      , %di
 	rep
 	movsw
-#	ljmp $INITSEG, $go	# jump to INITSEG:go -> cs=0x9000, ip=go
+	ljmpw $INITSEG, $go	# jump to INITSEG:go -> cs=0x9000, ip=go
 
 go:	movw %cs, %ax
 	movw %ax, %ds

@@ -14,10 +14,10 @@ int main(int argc, char *argv[]) {
         return -1;
     }
     printf("'%s' size: %lld bytes\n", argv[1], (long long)st.st_size);
-    /*if (st.st_size > 510) {
-        fprintf(stderr, "%lld >> 510!!\n", (long long)st.st_size);
+    if (st.st_size > 512) {
+        fprintf(stderr, "%lld >> 512!!\n", (long long)st.st_size);
         return -1;
-    }*/
+    }
     char buf[512];
     memset(buf, 0, sizeof(buf));
     FILE *ifp = fopen(argv[1], "rb");

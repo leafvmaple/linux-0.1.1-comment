@@ -33,13 +33,12 @@ MATH	=kernel/math/math.a
 LIBS	=lib/lib.a
 
 .c.s:
-	$(CC) $(CFLAGS) \
-	-nostdinc -Iinclude -S -o $*.s $<
+	$(CC) $(CFLAGS) -nostdinc -Iinclude -S -o $*.s $<
 .s.o:
 	$(CC) $(CFLAGS) -c -Os -o $*.o $<
+
 .c.o:
-	$(CC) $(CFLAGS) \
-	-nostdinc -Iinclude -c -o $*.o $<
+	$(CC) $(CFLAGS) -nostdinc -Iinclude -c -o $*.o $<
 
 all:	Image
 
@@ -48,13 +47,12 @@ Image: boot/bootsect.bin tools/sign #boot/setup tools/system tools/build
 #	sync
 	tools/sign boot/bootsect.bin $@
 
-disk: Image
-#	dd bs=8192 if=Image of=/dev/PS0
-	dd if=/dev/zero of=$@ count=10000
+linux.img: Image
+	dd if=/dev/zero of=$@ count=10080
 	dd if=Image of=$@ conv=notrunc
 #	dd if=bin/kernel.bin of=$@ seek=1 conv=notrunc
 
-debug: disk
+debug: linux.img
 	$(QEMU) -S -s -parallel stdio -hda $< -serial null &
 	sleep 2
 	$(TERMINAL) -e "gdb -q -x tools/gdbinit"
@@ -104,8 +102,8 @@ boot/setup: boot/setup.s
 boot/bootsect.bin:	boot/bootsect.o tools/sign
 #	$(CC) -o boot/bootsect.o boot/bootsect.s
 #	$(LD86) -s -o boot/bootsect boot/bootsect.o
-	$(LD) $(LDFLAGS) -N -e _start -Ttext 0x7C00 $< -o boot/bootsect
-	$(OBJDUMP) -S boot/bootsect > boot/bootsect.asm
+	$(LD) $(LDFLAGS) -N -e _start -Ttext 0x0 $< -o boot/bootsect
+	$(OBJDUMP) -S boot/bootsect > boot/bootsect.s.asm
 	$(OBJCOPY) -S -O binary boot/bootsect $@
 
 tmp.s:	boot/bootsect.s tools/system
@@ -140,3 +138,6 @@ init/main.o : init/main.c include/unistd.h include/sys/stat.h \
   include/linux/sched.h include/linux/head.h include/linux/fs.h \
   include/linux/mm.h include/signal.h include/asm/system.h include/asm/io.h \
   include/stddef.h include/stdarg.h include/fcntl.h 
+
+bochs: linux.img
+	bochs -f bochsrc.bxrc

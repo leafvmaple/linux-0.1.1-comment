@@ -18,7 +18,7 @@
 .set SYSSEG, 0x1000		# system loaded at 0x10000 (65536).
 .set SETUPSEG, 0x9020	# this is the current segment
 
-.globl begtext, begdata, begbss, endtext, enddata, endbss
+.globl begtext, begdata, begbss, start, endtext, enddata, endbss
 .text
 begtext:
 .data
@@ -27,18 +27,17 @@ begdata:
 begbss:
 .text
 
-entry start
 start:
 
 # ok, the read went well so we get current cursor position and save it for
 # posterity.
 
-	mov $INITSEG, %ax, 	# this is done in bootsect already, but...
-	mov	%ax, %ds 
-	mov	$0x03, %ah 		# read cursor pos
+	mov $INITSEG, %ax 	# this is done in bootsect already, but...
+	mov	%ax, %ds
+	mov	$0x03, %ah		# read cursor pos
 	xor	%bh, %bh
 	int	$0x10			# save it in known place, con_init fetches
-	mov	%dx, [0] 		# save data to 0x90000.
+	mov	%dx, [0]		# save data to 0x90000.
 
 # Get memory size (extended mem, kB)
 
@@ -136,11 +135,11 @@ end_move:
 # that was painless, now we enable A20
 
 	call empty_8042
-	mov	$0xD1, %al 		# command write
-	out	%al, $0x64, 
+	mov	$0xD1, %al		# command write
+	out	%al, $0x64
 	call empty_8042
-	mov	$0xDF, %al, 	# A20 on
-	out	%al, $0x60 
+	mov	$0xDF, %al		# A20 on
+	out	%al, $0x60
 	call empty_8042
 
 # well, that went ok, I hope. Now we have to reprogram the interrupts :-(
@@ -151,32 +150,32 @@ end_move:
 # which is used for the internal hardware interrupts as well. We just
 # have to reprogram the 8259's, and it isn't fun.
 
-	mov	al,$0x11		# initialization sequence
-	out	$0x20,al		# send it to 8259A-1
-	.word	0x00eb,0x00eb		# jmp $+2, jmp $+2
-	out	$0xA0,al		# and to 8259A-2
-	.word	0x00eb,0x00eb
-	mov	al,$0x20		# start of hardware int's (0x20)
-	out	$0x21,al
-	.word	0x00eb,0x00eb
-	mov	al,$0x28		# start of hardware int's 2 (0x28)
-	out	$0xA1,al
-	.word	0x00eb,0x00eb
-	mov	al,$0x04		# 8259-1 is master
-	out	$0x21,al
-	.word	0x00eb,0x00eb
-	mov	al,$0x02		# 8259-2 is slave
-	out	$0xA1,al
-	.word	0x00eb,0x00eb
-	mov	al,$0x01		# 8086 mode for both
-	out	$0x21,al
-	.word	0x00eb,0x00eb
-	out	$0xA1,al
-	.word	0x00eb,0x00eb
-	mov	al,$0xFF		# mask off all interrupts for now
-	out	$0x21,al
-	.word	0x00eb,0x00eb
-	out	$0xA1,al
+#	mov	al,$0x11		# initialization sequence
+#	out	$0x20,al		# send it to 8259A-1
+#	.word	0x00eb,0x00eb		# jmp $+2, jmp $+2
+#	out	$0xA0,al		# and to 8259A-2
+#	.word	0x00eb,0x00eb
+#	mov	al,$0x20		# start of hardware int's (0x20)
+#	out	$0x21,al
+#	.word	0x00eb,0x00eb
+#	mov	al,$0x28		# start of hardware int's 2 (0x28)
+#	out	$0xA1,al
+#	.word	0x00eb,0x00eb
+#	mov	al,$0x04		# 8259-1 is master
+#	out	$0x21,al
+#	.word	0x00eb,0x00eb
+#	mov	al,$0x02		# 8259-2 is slave
+#	out	$0xA1,al
+#	.word	0x00eb,0x00eb
+#	mov	al,$0x01		# 8086 mode for both
+#	out	$0x21,al
+#	.word	0x00eb,0x00eb
+#	out	$0xA1,al
+#	.word	0x00eb,0x00eb
+#	mov	al,$0xFF		# mask off all interrupts for now
+#	out	$0x21,al
+#	.word	0x00eb,0x00eb
+#	out	$0xA1,al
 
 # well, that certainly wasn't fun :-(. Hopefully it works, and we don't
 # need no steenking BIOS anyway (except for the initial loading :-).
@@ -188,9 +187,9 @@ end_move:
 # we let the gnu-compiled 32-bit programs do that. We just jump to
 # absolute address 0x00000, in 32-bit protected mode.
 
-	mov	ax, $0x0001	# protected mode (PE) bit
-	lmsw ax			# This is it;
-	jmpi 0, 8		# jmp offset 0 of segment 8 (cs), gdd[1]
+	mov	$0x0001, %ax 	# protected mode (PE) bit
+	lmsw %ax			# This is it;
+	jmp $8, $0			# jmp offset 0 of segment 8 (cs), gdd[1]
 
 # This routine checks that the keyboard command queue is empty
 # No timeout is used - if this hangs there is something wrong with
