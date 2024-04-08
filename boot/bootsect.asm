@@ -59,7 +59,7 @@ go:	mov	ax,cs
 load_setup:
 	mov	dx, 0x0000		; drive 0, head 0
 	mov	cx, 0x0002		; sector 2, track 0
-	mov	bx, 0x0200		; address = 512, in INITSEG
+	mov	bx, 0x0200		; address = cs:0x200 = 0x90200
 	mov	ax, 0x0200 + SETUPLEN	; service 2, nr of sectors
 	int	0x13			; read it
 	jnc	ok_load_setup		; ok - continue

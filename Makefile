@@ -14,6 +14,8 @@ HOSTCFLAGS := -g -Wall -O2
 
 CPP	=cpp -nostdinc -Iinclude
 
+DASM = ndisasm
+
 QEMU := qemu-system-i386
 TERMINAL :=gnome-terminal
 
@@ -47,10 +49,10 @@ Image: boot/bootsect.bin tools/sign #boot/setup tools/system tools/build
 #	sync
 	tools/sign boot/bootsect.bin $@
 
-linux.img: Image
+linux.img: Image boot/setup
 	dd if=/dev/zero of=$@ count=10080
 	dd if=Image of=$@ conv=notrunc
-#	dd if=bin/kernel.bin of=$@ seek=1 conv=notrunc
+	dd if=boot/setup of=$@ seek=1 conv=notrunc
 
 debug: linux.img
 	$(QEMU) -S -s -parallel stdio -hda $< -serial null &
@@ -96,8 +98,11 @@ lib/lib.a:
 	(cd lib; make)
 
 boot/setup: boot/setup.s
-	$(CC) $(CFLAGS) -Os -nostdinc -o boot/setup.o boot/setup.s
-	$(LD86) -s -o boot/setup boot/setup.o
+	$(CC) $(CFLAGS) -c -Os -nostdinc -o $@.o $<
+	$(LD) $(LDFLAGS) -N -e start -Ttext 0x0 $@.o -o $@
+	$(OBJDUMP) -S $@ > $<.asm
+	$(OBJCOPY) -S -O binary $@ $@.bin
+	$(DASM) -b 16 $@.bin > $@.disasm
 
 boot/bootsect.bin:	boot/bootsect.o tools/sign
 #	$(CC) -o boot/bootsect.o boot/bootsect.s
@@ -105,6 +110,7 @@ boot/bootsect.bin:	boot/bootsect.o tools/sign
 	$(LD) $(LDFLAGS) -N -e _start -Ttext 0x0 $< -o boot/bootsect
 	$(OBJDUMP) -S boot/bootsect > boot/bootsect.s.asm
 	$(OBJCOPY) -S -O binary boot/bootsect $@
+	$(DASM) -b 16 $@ > boot/bootsect.disasm
 
 tmp.s:	boot/bootsect.s tools/system
 	(echo -n "SYSSIZE = (";ls -l tools/system | grep system \
@@ -112,7 +118,7 @@ tmp.s:	boot/bootsect.s tools/system
 	cat boot/bootsect.s >> tmp.s
 
 clean:
-	rm -f Image System.map tmp_make core boot/bootsect boot/bootsect.bin boot/setup
+	rm -f linux.img Image System.map tmp_make core boot/bootsect boot/bootsect.bin boot/setup
 	rm -f init/*.o tools/system tools/build boot/*.o
 	(cd mm;make clean)
 	(cd fs;make clean)
@@ -140,4 +146,4 @@ init/main.o : init/main.c include/unistd.h include/sys/stat.h \
   include/stddef.h include/stdarg.h include/fcntl.h 
 
 bochs: linux.img
-	bochs -f bochsrc.bxrc
+	bochs -q -f bochsrc.bxrc
