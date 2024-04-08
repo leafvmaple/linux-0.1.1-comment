@@ -87,12 +87,19 @@ ok_load_setup:
 # ||| Print Message!
 
 # Get disk drive parameters, specifically nr of sectors/track
-
+# AH=0x8, INT0x13 -> DL=Drives, CH=Cylinders-1, DH=Heads-1, CL=Sectors
 	movb $0x80   , %dl
 	movw $0x0800 , %ax 		# AH=8 is get drive parameters
 	int	 $0x13
-	movb $0x00   , %ch 
-	movw %cx, sectors		# [sectors] = sectors of driver
+	mov  $1 , %eax
+	add  $1 , %ch
+	add  $1 , %dh
+	mul  %ch
+	mul  %dh
+	xor  %ch, %ch
+	mul  %cx
+	# movw %ax     , sectors
+	movw $127	 , sectors
 	movw $INITSEG, %ax
 	movw %ax     , %es
 
@@ -128,95 +135,34 @@ ok_load_setup:
 #
 # in:	es - starting address segment (normally 0x1000)
 #
-sread:	.word 1 + SETUPLEN	# sectors read of current track
-head:	.word 0				# current head
-track:	.word 0				# current track
 
 # move to es
 read_it:
 	xor %bx, %bx		# bx is starting address within segment
-rp_read:
-	mov %es    , %ax 
-	cmp $ENDSEG, %ax	# have we loaded all yet?
-	jb  ok1_read
-	ret
-ok1_read:				# read 1 track, if sread == sectors then track++
-	call read_track
-	mov  %ax    , %cx
-	mov  sread  , %ax
-	cmp  sectors, %ax
-	jne  ok3_read		# sread != sectors jmp to ok3_read
-	mov  $1     , %ax
-	sub  head   , %ax
-	jne  ok4_read		# head != 1 jmp to ok4_read
-	incw track			# if sread == sectors && head == 1 then track++
-ok4_read:
-	mov %ax, head
-	xor %ax, %ax
-ok3_read:
-	mov %ax    , sread
-	shl $9     , %cx
-	add %cx    , %bx
-	jnc rp_read
-	mov %es    , %ax
-	add $0x1000, %ax
-	mov %ax    , %es
-	xor %bx    , %bx
-	jmp rp_read
 
-# read 1 sector from C[track] H[head] S[++sread]
-read_track:				# read 1 sector
-	push %ax
-	push %bx
-	push %cx
-	push %dx
-	mov track, %dx		# DL = track
-	mov sread, %cx		# CL = spead
-	inc %cx				# CL = ++sread, 读取sread号扇区
-	mov %dl  , %ch		# CH=track, 读取track号柱面
-	mov head , %dx		# DL=head
-	mov %dl  , %dh		# DH=head
-	mov $0   , %dl		# DL=0, Driver 0
-	and $0x0100, %dx	# DH=head&1, 读取第head&1磁头
-	mov $2   , %ah		# AH=2, 读磁盘
-	int $0x13
-	jc  bad_rt
-	pop %dx
-	pop %cx
-	pop %bx
-	pop %ax
-	ret
-bad_rt:
-	mov $0, %ax
-	mov $0, %dx
-	int $0x13
-	pop %dx
-	pop %cx
-	pop %bx
-	pop %ax
-	jmp read_track
-
-/*
- * This procedure turns off the floppy drive motor, so
- * that we enter the kernel in a known state, and
- * don't have to worry about it later.
- */
-# outb 0x0, 0x3f2 -> shut down floppy
-kill_motor:
-	push %dx
-	mov  $0x3f2, %dx
-	mov  $0    , %al
-	outb %al   , %dx
-	pop  %dx
+	# read track
+    mov  $dap , %si
+    movb $0x42, %ah                                 # AH=0x42, LAB模式读取磁盘
+    movb $0x80, %dl                                 # DL=0, Driver 0
+    int  $0x13
 	ret
 
+.align 16
+dap:
+    .byte 0x10
+    .byte 0x00
 sectors:
-	.word 0
+    .word 0
+    .word 0x00
+    .word SYSSEG
+sread:
+    .quad 1 + SETUPLEN
+
+#sectors:
+#	.word 0
 
 msg1:
-	.byte 13, 10
-	.ascii "Loading system ..."
-	.byte 13, 10, 13, 10
+	.ascii "\r\nLoading system ...\r\n\r\n"
 
 .org 508
 root_dev:
