@@ -151,15 +151,15 @@ read_it:
 dap:
     .byte 0x10
     .byte 0x00
-sectors:
-    .word 0
+    .word 128
     .word 0x00
+segment:
     .word SYSSEG
 sread:
     .quad 1 + SETUPLEN
 
-#sectors:
-#	.word 0
+sectors:
+	.word 0
 
 msg1:
 	.ascii "\r\nLoading system ...\r\n\r\n"

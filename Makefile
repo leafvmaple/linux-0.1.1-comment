@@ -42,28 +42,15 @@ LIBS	=lib/lib.a
 .c.o:
 	$(CC) $(CFLAGS) -nostdinc -Iinclude -c -o $*.o $<
 
-all:	Image
-
-Image: boot/bootsect.bin tools/sign #boot/setup tools/system tools/build
-#	tools/build boot/bootsect boot/setup tools/system $(ROOT_DEV) > Image
-#	sync
-	tools/sign boot/bootsect.bin $@
-
-linux.img: Image boot/setup
-	dd if=/dev/zero of=$@ count=10080
-	dd if=Image of=$@ conv=notrunc
-	dd if=boot/setup of=$@ seek=1 conv=notrunc
+linux.img: boot/bootsect.bin boot/setup.bin
+	dd if=/dev/zero of=$@ count=8064
+	dd if=boot/bootsect.bin of=$@ conv=notrunc
+	dd if=boot/setup.bin of=$@ seek=1 conv=notrunc
 
 debug: linux.img
 	$(QEMU) -S -s -parallel stdio -hda $< -serial null &
 	sleep 2
 	$(TERMINAL) -e "gdb -q -x tools/gdbinit"
-
-tools/build: tools/build.c
-	$(HOSTCC) $(HOSTCFLAGS) -o tools/build tools/build.c
-
-tools/sign: tools/sign.c
-	$(HOSTCC) $(HOSTCFLAGS) -o $@ $^
 
 boot/head.o: boot/head.s
 
@@ -100,15 +87,17 @@ lib/lib.a:
 boot/setup: boot/setup.s
 	$(CC) $(CFLAGS) -c -Os -nostdinc -o $@.o $<
 	$(LD) $(LDFLAGS) -N -e start -Ttext 0x0 $@.o -o $@
-	$(OBJDUMP) -S $@ > $<.asm
-	$(OBJCOPY) -S -O binary $@ $@.bin
-	$(DASM) -b 16 $@.bin > $@.disasm
+	$(OBJDUMP) -S $@ > $@.gas
 
-boot/bootsect.bin:	boot/bootsect.o tools/sign
-#	$(CC) -o boot/bootsect.o boot/bootsect.s
-#	$(LD86) -s -o boot/bootsect boot/bootsect.o
-	$(LD) $(LDFLAGS) -N -e _start -Ttext 0x0 $< -o boot/bootsect
-	$(OBJDUMP) -S boot/bootsect > boot/bootsect.s.asm
+boot/bootsect: boot/bootsect.o
+	$(LD) $(LDFLAGS) -N -e _start -Ttext 0x0 $< -o $@
+	$(OBJDUMP) -S $@ > $@.gas
+
+boot/setup.bin: boot/setup
+	$(OBJCOPY) -S -O binary boot/setup $@
+	$(DASM) -b 16 $@ > boot/setup.disasm
+
+boot/bootsect.bin: boot/bootsect
 	$(OBJCOPY) -S -O binary boot/bootsect $@
 	$(DASM) -b 16 $@ > boot/bootsect.disasm
 
