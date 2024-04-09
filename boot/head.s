@@ -13,6 +13,7 @@
  */
 .text
 .globl _idt, _gdt, _pg_dir, _tmp_floppy_area
+.code32
 _pg_dir:
 startup_32:
 	movl $0x10, %eax		# Seletor Index is 2
@@ -20,7 +21,7 @@ startup_32:
 	mov  %ax  , %es
 	mov  %ax  , %fs
 	mov  %ax  , %gs
-	lss _stack_start, %esp	# esp=&user_stack[PAGE_SIZE>>2], ss=0x10(selector=2)
+	lss  stack_start, %esp	# esp=&user_stack[PAGE_SIZE>>2], ss=0x10(selector=2)
 	call setup_idt
 	call setup_gdt
 	movl $0x10, %eax		# reload all the segment registers
@@ -28,7 +29,7 @@ startup_32:
 	mov  %ax  , %es			# reloaded in 'setup_gdt'
 	mov  %ax  , %fs
 	mov  %ax  , %gs
-	lss _stack_start, %esp
+	lss  stack_start, %esp
 	xorl %eax , %eax
 1:	incl %eax				# check that A20 really IS enabled
 	movl %eax ,0x000000		# loop forever if it isn't
@@ -77,10 +78,10 @@ check_x87:
  */
 /* TODO */
 setup_idt:
-	lea ignore_int, %edx
+	lea  ignore_int , %edx
 	movl $0x00080000, %eax
-	movw %dx, %ax		/* selector = 0x0008 = cs */
-	movw $0x8E00, %dx	/* interrupt gate - dpl=0, present */
+	movw %dx        , %ax	/* selector = 0x0008 = cs */
+	movw $0x8E00    , %dx	/* interrupt gate - dpl=0, present */
 
 	lea _idt, %edi
 	mov $256, %ecx
@@ -138,7 +139,7 @@ after_page_tables:
 	pushl $0
 	pushl $0
 	pushl $L6		# return address for main, if it decides to.
-	pushl $_main
+	pushl $main
 	jmp setup_paging
 L6:
 	jmp L6			# main should never return here, but
@@ -155,13 +156,13 @@ ignore_int:
 	push  %ds
 	push  %es
 	push  %fs
-	movl  $0x10, %eax
-	mov   %ax  , %ds
-	mov   %ax  , %es
-	mov   %ax  , %fs
-	pushl $int_msg
-	call  _printk
-	popl  %eax
+#	movl  $0x10, %eax
+#	mov   %ax  , %ds
+#	mov   %ax  , %es
+#	mov   %ax  , %fs
+#	pushl $int_msg
+#	call  _printk
+#	popl  %eax
 	pop   %fs
 	pop   %es
 	pop   %ds
@@ -230,9 +231,11 @@ gdt_descr:
 	.long _gdt				# magic number, but it works for me :^)
 
 	.align 8
-_idt:	.fill 256, 8, 0		# idt is uninitialized
+_idt:
+	.fill 256, 8, 0		# idt is uninitialized
 
-_gdt:	.quad 0x0000000000000000	/* NULL descriptor */
+_gdt:
+	.quad 0x0000000000000000	/* NULL descriptor */
 	.quad 0x00c09a0000000fff	/* 16Mb limit=0x0FFF, base=0x0000, read/exec, granularity=4096, 386 */
 	.quad 0x00c0920000000fff	/* 16Mb limit=0x0FFF, base=0x0000, read/write, granularity=4096, 386 */
 	.quad 0x0000000000000000	/* TEMPORARY - don't use */

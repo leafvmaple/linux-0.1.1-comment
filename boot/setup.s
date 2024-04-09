@@ -186,7 +186,7 @@ end_move:
 
 	mov	$0x0001, %ax 	# protected mode (PE) bit
 	lmsw %ax			# This is it;
-	jmp $8, $0			# jmp offset 0 of segment 8 (cs), gdd[1]
+	jmp $8     , $0		# jmp offset 0 of segment 8 (cs), gdd[1]
 
 # This routine checks that the keyboard command queue is empty
 # No timeout is used - if this hangs there is something wrong with

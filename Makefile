@@ -42,10 +42,11 @@ LIBS	 := lib/lib.a
 .c.o:
 	$(CC) $(CFLAGS) -nostdinc -Iinclude -c -o $*.o $<
 
-linux.img: boot/bootsect.bin boot/setup.bin
+linux.img: boot/bootsect.bin boot/setup.bin tools/system.bin
 	dd if=/dev/zero of=$@ count=8064
 	dd if=boot/bootsect.bin of=$@ conv=notrunc
 	dd if=boot/setup.bin of=$@ seek=1 conv=notrunc
+	dd if=tools/system.bin of=$@ seek=5 conv=notrunc
 
 debug: linux.img
 	$(QEMU) -S -s -parallel stdio -hda $< -serial null &
@@ -53,9 +54,6 @@ debug: linux.img
 	$(TERMINAL) -e "gdb -q -x tools/gdbinit"
 
 boot/head.o: boot/head.s
-
-tools/system: boot/head.o init/main.o $(ARCHIVES) $(DRIVERS) $(MATH) $(LIBS)
-	$(LD) $(LDFLAGS) boot/head.o init/main.o $(ARCHIVES) $(DRIVERS) $(MATH) $(LIBS) -o tools/system > System.map
 
 kernel/math/math.a:
 	(cd kernel/math; make)
@@ -86,13 +84,21 @@ boot/bootsect: boot/bootsect.o
 	$(LD) $(LDFLAGS) -N -e _start -Ttext 0x0 $< -o $@
 	$(OBJDUMP) -S $@ > $@.gas
 
+tools/system: boot/head.o init/main.o# $(ARCHIVES) $(DRIVERS) $(MATH) $(LIBS)
+	$(LD) $(LDFLAGS) -N -Ttext 0x0 $^ -o $@ > System.map
+	$(OBJDUMP) -S $@ > $@.gas
+
 boot/setup.bin: boot/setup
-	$(OBJCOPY) -S -O binary boot/setup $@
-	$(DASM) -b 16 $@ > boot/setup.disasm
+	$(OBJCOPY) -S -O binary $< $@
+	$(DASM) -b 16 $@ > $<.disasm
 
 boot/bootsect.bin: boot/bootsect
-	$(OBJCOPY) -S -O binary boot/bootsect $@
-	$(DASM) -b 16 $@ > boot/bootsect.disasm
+	$(OBJCOPY) -S -O binary $< $@
+	$(DASM) -b 16 $@ > $<.disasm
+
+tools/system.bin: tools/system
+	$(OBJCOPY) -S -O binary $< $@
+	$(DASM) -b 32 $@ > $<.disasm
 
 tmp.s:	boot/bootsect.s tools/system
 	(echo -n "SYSSIZE = (";ls -l tools/system | grep system \
@@ -120,7 +126,7 @@ dep:
 	(cd mm; make dep)
 
 ### Dependencies:
-init/main.o: init/main.c include/unistd.h include/sys/stat.h \
+init/main.o: init/main.c #include/unistd.h include/sys/stat.h \
   include/sys/types.h include/sys/times.h include/sys/utsname.h \
   include/utime.h include/time.h include/linux/tty.h include/termios.h \
   include/linux/sched.h include/linux/head.h include/linux/fs.h \

@@ -67,33 +67,41 @@ extern long startup_time;
  */
 
 #define CMOS_READ(addr) ({ \
-outb_p(0x80|addr,0x70); \
-inb_p(0x71); \
+	outb_p(0x80|addr,0x70); \
+	inb_p(0x71); \
 })
 
 #define BCD_TO_BIN(val) ((val)=((val)&15) + ((val)>>4)*10)
 
-static void time_init(void)
-{
-	struct tm time;
+// static void time_init(void)
+// {
+// 	struct tm time;
 
-	do {
-		time.tm_sec = CMOS_READ(0);
-		time.tm_min = CMOS_READ(2);
-		time.tm_hour = CMOS_READ(4);
-		time.tm_mday = CMOS_READ(7);
-		time.tm_mon = CMOS_READ(8);
-		time.tm_year = CMOS_READ(9);
-	} while (time.tm_sec != CMOS_READ(0));
-	BCD_TO_BIN(time.tm_sec);
-	BCD_TO_BIN(time.tm_min);
-	BCD_TO_BIN(time.tm_hour);
-	BCD_TO_BIN(time.tm_mday);
-	BCD_TO_BIN(time.tm_mon);
-	BCD_TO_BIN(time.tm_year);
-	time.tm_mon--;
-	startup_time = kernel_mktime(&time);
-}
+// 	do {
+// 		time.tm_sec = CMOS_READ(0);
+// 		time.tm_min = CMOS_READ(2);
+// 		time.tm_hour = CMOS_READ(4);
+// 		time.tm_mday = CMOS_READ(7);
+// 		time.tm_mon = CMOS_READ(8);
+// 		time.tm_year = CMOS_READ(9);
+// 	} while (time.tm_sec != CMOS_READ(0));
+// 	BCD_TO_BIN(time.tm_sec);
+// 	BCD_TO_BIN(time.tm_min);
+// 	BCD_TO_BIN(time.tm_hour);
+// 	BCD_TO_BIN(time.tm_mday);
+// 	BCD_TO_BIN(time.tm_mon);
+// 	BCD_TO_BIN(time.tm_year);
+// 	time.tm_mon--;
+// 	startup_time = kernel_mktime(&time);
+// }
+
+long user_stack [ PAGE_SIZE>>2 ] ;
+
+struct {
+	long * a;
+	short b;
+	} stack_start = { & user_stack [PAGE_SIZE>>2] , 0x10 };
+int ROOT_DEV = 0;
 
 static long memory_end = 0;
 static long buffer_memory_end = 0;
@@ -123,21 +131,21 @@ void main(void)		/* This really IS void, no error here. */
 #ifdef RAMDISK
 	main_memory_start += rd_init(main_memory_start, RAMDISK*1024);
 #endif
-	mem_init(main_memory_start,memory_end);
-	trap_init();
-	blk_dev_init();
-	chr_dev_init();
-	tty_init();
-	time_init();
-	sched_init();
-	buffer_init(buffer_memory_end);
-	hd_init();
-	floppy_init();
-	sti();
-	move_to_user_mode();
-	if (!fork()) {		/* we count on this going ok */
-		init();
-	}
+	// mem_init(main_memory_start,memory_end);
+	// trap_init();
+	// blk_dev_init();
+	// chr_dev_init();
+	// tty_init();
+	// time_init();
+	// sched_init();
+	// buffer_init(buffer_memory_end);
+	// hd_init();
+	// floppy_init();
+	// sti();
+	// move_to_user_mode();
+	// if (!fork()) {		/* we count on this going ok */
+	// 	init();
+	// }
 /*
  *   NOTE!!   For any other task 'pause()' would mean we have to get a
  * signal to awaken, but task0 is the sole exception (see 'schedule()')
@@ -145,7 +153,8 @@ void main(void)		/* This really IS void, no error here. */
  * can run). For task0 'pause()' just means we go check if some other
  * task can run, and if not we return here.
  */
-	for(;;) pause();
+	for (;;);
+	// for(;;) pause();
 }
 
 static int printf(const char *fmt, ...)
@@ -154,7 +163,7 @@ static int printf(const char *fmt, ...)
 	int i;
 
 	va_start(args, fmt);
-	write(1,printbuf,i=vsprintf(printbuf, fmt, args));
+	// write(1,printbuf,i=vsprintf(printbuf, fmt, args));
 	va_end(args);
 	return i;
 }
@@ -165,45 +174,45 @@ static char * envp_rc[] = { "HOME=/", NULL };
 static char * argv[] = { "-/bin/sh",NULL };
 static char * envp[] = { "HOME=/usr/root", NULL };
 
-void init(void)
-{
-	int pid,i;
+// void init(void)
+// {
+// 	int pid,i;
 
-	setup((void *) &drive_info);
-	(void) open("/dev/tty0",O_RDWR,0);
-	(void) dup(0);
-	(void) dup(0);
-	printf("%d buffers = %d bytes buffer space\n\r",NR_BUFFERS,
-		NR_BUFFERS*BLOCK_SIZE);
-	printf("Free mem: %d bytes\n\r",memory_end-main_memory_start);
-	if (!(pid=fork())) {
-		close(0);
-		if (open("/etc/rc",O_RDONLY,0))
-			_exit(1);
-		execve("/bin/sh",argv_rc,envp_rc);
-		_exit(2);
-	}
-	if (pid>0)
-		while (pid != wait(&i))
-			/* nothing */;
-	while (1) {
-		if ((pid=fork())<0) {
-			printf("Fork failed in init\r\n");
-			continue;
-		}
-		if (!pid) {
-			close(0);close(1);close(2);
-			setsid();
-			(void) open("/dev/tty0",O_RDWR,0);
-			(void) dup(0);
-			(void) dup(0);
-			_exit(execve("/bin/sh",argv,envp));
-		}
-		while (1)
-			if (pid == wait(&i))
-				break;
-		printf("\n\rchild %d died with code %04x\n\r",pid,i);
-		sync();
-	}
-	_exit(0);	/* NOTE! _exit, not exit() */
-}
+// 	setup((void *) &drive_info);
+// 	(void) open("/dev/tty0",O_RDWR,0);
+// 	(void) dup(0);
+// 	(void) dup(0);
+// 	printf("%d buffers = %d bytes buffer space\n\r",NR_BUFFERS,
+// 		NR_BUFFERS*BLOCK_SIZE);
+// 	printf("Free mem: %d bytes\n\r",memory_end-main_memory_start);
+// 	if (!(pid=fork())) {
+// 		close(0);
+// 		if (open("/etc/rc",O_RDONLY,0))
+// 			_exit(1);
+// 		execve("/bin/sh",argv_rc,envp_rc);
+// 		_exit(2);
+// 	}
+// 	if (pid>0)
+// 		while (pid != wait(&i))
+// 			/* nothing */;
+// 	while (1) {
+// 		if ((pid=fork())<0) {
+// 			printf("Fork failed in init\r\n");
+// 			continue;
+// 		}
+// 		if (!pid) {
+// 			close(0);close(1);close(2);
+// 			setsid();
+// 			(void) open("/dev/tty0",O_RDWR,0);
+// 			(void) dup(0);
+// 			(void) dup(0);
+// 			_exit(execve("/bin/sh",argv,envp));
+// 		}
+// 		while (1)
+// 			if (pid == wait(&i))
+// 				break;
+// 		printf("\n\rchild %d died with code %04x\n\r",pid,i);
+// 		sync();
+// 	}
+// 	_exit(0);	/* NOTE! _exit, not exit() */
+// }
