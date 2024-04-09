@@ -15,24 +15,24 @@
 .globl _idt, _gdt, _pg_dir, _tmp_floppy_area
 _pg_dir:
 startup_32:
-	movl $0x10, %eax    ; Seletor Index is 2
-	mov %ax, %ds
-	mov %ax, %es
-	mov %ax, %fs
-	mov %ax, %gs
-	lss _stack_start, %esp	; esp=&user_stack[PAGE_SIZE>>2], ss=0x10(selector=2)
+	movl $0x10, %eax		# Seletor Index is 2
+	mov  %ax  , %ds
+	mov  %ax  , %es
+	mov  %ax  , %fs
+	mov  %ax  , %gs
+	lss _stack_start, %esp	# esp=&user_stack[PAGE_SIZE>>2], ss=0x10(selector=2)
 	call setup_idt
 	call setup_gdt
-	movl $0x10, %eax	; reload all the segment registers
-	mov %ax, %ds		; after changing gdt. CS was already
-	mov %ax, %es		; reloaded in 'setup_gdt'
-	mov %ax, %fs
-	mov %ax, %gs
+	movl $0x10, %eax		# reload all the segment registers
+	mov  %ax  , %ds			# after changing gdt. CS was already
+	mov  %ax  , %es			# reloaded in 'setup_gdt'
+	mov  %ax  , %fs
+	mov  %ax  , %gs
 	lss _stack_start, %esp
-	xorl %eax, %eax
-1:	incl %eax		; check that A20 really IS enabled
-	movl %eax,0x000000	; loop forever if it isn't
-	cmpl %eax,0x100000
+	xorl %eax , %eax
+1:	incl %eax				# check that A20 really IS enabled
+	movl %eax ,0x000000		# loop forever if it isn't
+	cmpl %eax ,0x100000
 	je 1b
 /*
  * NOTE! 486 should set bit 16, to check for write-protect in supervisor
@@ -40,13 +40,13 @@ startup_32:
  * 486 users probably want to set the NE (#5) bit also, so as to use
  * int 16 for math errors.
  */
-	movl %cr0, %eax		# check math chip
+	movl %cr0       , %eax	# check math chip
 	andl $0x80000011, %eax	# Save PG,PE,ET
 /* "orl $0x10020,%eax" here for 486 might be good */
-	orl $2, %eax		# set MP TODO: Why
-	movl %eax, %cr0
+	orl  $2         , %eax	# set MP TODO: Why
+	movl %eax       , %cr0
 	call check_x87
-	jmp after_page_tables
+	jmp  after_page_tables
 
 /*
  * We depend on ET to be correct. This checks for 287/387.
@@ -152,22 +152,22 @@ ignore_int:
 	pushl %eax
 	pushl %ecx
 	pushl %edx
-	push %ds
-	push %es
-	push %fs
-	movl $0x10,%eax
-	mov %ax,%ds
-	mov %ax,%es
-	mov %ax,%fs
+	push  %ds
+	push  %es
+	push  %fs
+	movl  $0x10, %eax
+	mov   %ax  , %ds
+	mov   %ax  , %es
+	mov   %ax  , %fs
 	pushl $int_msg
-	call _printk
-	popl %eax
-	pop %fs
-	pop %es
-	pop %ds
-	popl %edx
-	popl %ecx
-	popl %eax
+	call  _printk
+	popl  %eax
+	pop   %fs
+	pop   %es
+	pop   %ds
+	popl  %edx
+	popl  %ecx
+	popl  %eax
 	iret
 
 
@@ -229,7 +229,7 @@ gdt_descr:
 	.word 256 * 8 - 1		# 0x800 - 1, so does gdt (not that that's any
 	.long _gdt				# magic number, but it works for me :^)
 
-	.align 3
+	.align 8
 _idt:	.fill 256, 8, 0		# idt is uninitialized
 
 _gdt:	.quad 0x0000000000000000	/* NULL descriptor */

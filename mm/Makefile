@@ -1,10 +1,9 @@
-CC	=gcc
-CFLAGS	=-O -Wall -fstrength-reduce -fcombine-regs -fomit-frame-pointer \
-	-finline-functions -nostdinc -I../include
-AS	=gas
-AR	=gar
-LD	=gld
-CPP	=gcc -E -nostdinc -I../include
+CC := gcc
+CFLAGS := -O -m32 -Wall -fstrength-reduce -fomit-frame-pointer -finline-functions -nostdinc -I../include
+AS  := gas
+AR  := gar
+LD  := gld
+CPP	:= gcc -E -nostdinc -I../include
 
 .c.o:
 	$(CC) $(CFLAGS) \
@@ -15,7 +14,7 @@ CPP	=gcc -E -nostdinc -I../include
 	$(CC) $(CFLAGS) \
 	-S -o $*.s $<
 
-OBJS	= memory.o page.o
+OBJS := memory.o page.o
 
 all: mm.o
 

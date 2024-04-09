@@ -18,87 +18,83 @@
 .set SYSSEG, 0x1000		# system loaded at 0x10000 (65536).
 .set SETUPSEG, 0x9020	# this is the current segment
 
-.globl begtext, begdata, begbss, start, endtext, enddata, endbss
-.text
-begtext:
-.data
-begdata:
-.bss
-begbss:
-.text
+.code16
+.globl start
 
 start:
 
 # ok, the read went well so we get current cursor position and save it for
 # posterity.
-
+# ah=0x3, int0x10 -> DH=Row, DL=Colunm
 	mov $INITSEG, %ax 	# this is done in bootsect already, but...
-	mov	%ax, %ds
-	mov	$0x03, %ah		# read cursor pos
-	xor	%bh, %bh
-	int	$0x10			# save it in known place, con_init fetches
-	mov	%dx, [0]		# save data to 0x90000.
+	mov %ax     , %ds
+	mov $0x03   , %ah	# read cursor pos
+	xor %bh     , %bh
+	int $0x10			# save it in known place, con_init fetches
+	mov %dx     , 0	# save data to 0x90000.
 
 # Get memory size (extended mem, kB)
-
+# ah=0x88, int0x15 -> AH=Memory Size (KB)
 	mov $0x88, %ah 
 	int	$0x15
-	mov	%ax, [2]
+	mov	%ax  , 2
 
 # Get video-card data:
-
-	mov	$0x0f, %ah 
+# ah=0x0f, int0x10 -> AH=Screen Width(Chars), AL=Video Mode, BH=Video Page
+# Video Mode 3: 80 x 25 CGA, EGA B800
+	mov	$0x0f, %ah
 	int	$0x10
-	mov	%bx, [4] 		# bh = display page
-	mov	%ax, [6]		# al = video mode, ah = window width
+	mov	%bx  , 4 		# bh = display page
+	mov	%ax  , 6		# al = video mode, ah = window width
 
 # check for EGA/VGA and some config parameters
-
-	mov	$0x12, %ah 
+# ah=12h, bl=10h, int10h -> bh=BIOS setup, bl=Mem Size Code, ch=Feature Bits, cl=Switch Settings
+# Mem Size Code 3: 256K
+	mov	$0x12, %ah
 	mov	$0x10, %bl
 	int	$0x10
-	mov	%ax, [8] 
-	mov	%bx, [10]
-	mov	%cx, [12]
+	mov	%ax  , 8
+	mov	%bx  , 10		# bh=BIOS setup, bl=Mem Size Code
+	mov	%cx  , 12		# ch=Feature Bits, cl=Switch Settings
 
 # Get hd0 data
-
-	mov $0x0000, %ax 
-	mov	%ax, %ds 
-	lds	[4*0x41], %si 
-	mov	$INITSEG, %ax 
-	mov	%ax, %es 
-	mov	$0x0080, %di 
-	mov	$0x10, %cx 
+# Get HD0 Data to [0x90080, 0x90090)
+	mov $0x0    , %ax
+	mov	%ax     , %ds
+	lds	4 * 0x41, %si	# Int 0x41 is Get HD0 Param Pointers, located in 0x41 * 4(Interupt Size)
+	mov	$INITSEG, %ax
+	mov	%ax     , %es
+	mov	$0x80   , %di
+	mov	$0x10   , %cx
 	rep
-	movsb
+	movsb				# move [cx] bytes ds:si to es:di
 
 # Get hd1 data
-
-	mov $0x0000, %ax 
-	mov	%ax, %ds 
-	lds	[4*0x46], %si 
-	mov	$INITSEG, %ax 
-	mov	%ax, %es 
-	mov	$0x0090, %di 
-	mov	$0x10, %cx 
+# Get HD0 Data to [0x90090, 0x900A0)
+	mov $0x0    , %ax
+	mov	%ax     , %ds
+	lds	4 * 0x46, %si	# Int 0x46 is Get HD1 Param Pointers, located in 0x46 * 4(Interupt Size)
+	mov	$INITSEG, %ax
+	mov	%ax     , %es
+	mov	$0x90   , %di
+	mov	$0x10   , %cx
 	rep
-	movsb
+	movsb				# move [cx] bytes ds:si to es:di
 
 # Check that there IS a hd1 :-)
 
-	mov $0x01500, %ax 
-	mov	$0x81, %dl 
+	mov $0x01500, %ax
+	mov	$0x81   , %dl	# dl=0x81: HD1
 	int	$0x13
-	jc	no_disk1
-	cmp	$3, %ah 
+	jc	no_disk1		# CF is set to CY: Error
+	cmp	$3      , %ah   # ah=0x3: it's a hard disk
 	je	is_disk1
-no_disk1:
-	mov	$INITSEG, %ax 
-	mov	%ax, %es 
-	mov	$0x0090, %di 
-	mov	$0x10, %cx 
-	mov	$0x00, %ax 
+no_disk1:				# reset [0x90090, 0x90100)
+	mov	$INITSEG, %ax
+	mov	%ax     , %es
+	mov	$0x90   , %di
+	mov	$0x10   , %cx
+	mov	$0x00   , %ax
 	rep
 	stosb
 is_disk1:
@@ -128,18 +124,19 @@ do_move:
 
 end_move:
 	mov $SETUPSEG, %ax 	# right, forgot this at first. didn't work :-)
-	mov	%ax, %ds 
-	lidt idt_48			# load idt with 0,0
-	lgdt gdt_48			# load gdt with whatever appropriate
+	mov	%ax      , %ds
+
+	lidt idt_48			# load idt with 0, 0; lidt ds:idt_48
+	lgdt gdt_48			# load gdt with whatever appropriate; lgdt ds:gdt_48
 
 # that was painless, now we enable A20
 
 	call empty_8042
-	mov	$0xD1, %al		# command write
-	out	%al, $0x64
+	mov	 $0xD1, %al		# command write
+	outb %al  , $0x64
 	call empty_8042
-	mov	$0xDF, %al		# A20 on
-	out	%al, $0x60
+	mov  $0xDF, %al		# A20 on
+	outb %al  , $0x60
 	call empty_8042
 
 # well, that went ok, I hope. Now we have to reprogram the interrupts :-(
@@ -195,10 +192,9 @@ end_move:
 # No timeout is used - if this hangs there is something wrong with
 # the machine, and we probably couldn't proceed anyway.
 empty_8042:
-	.word 0x00eb, 0x00eb
-	in $0x64, %al 	# 8042 status port
-	test $2, %al 	# is input buffer full?
-	jnz	empty_8042	# yes - loop
+	in   $0x64, %al		# 8042 status port
+	test $2   , %al		# is input buffer full?
+	jnz	 empty_8042		# yes - loop
 	ret
 
 gdt:
@@ -221,10 +217,4 @@ idt_48:
 gdt_48:
 	.word	0x800			# gdt limit=2048, 256 GDT entries
 	.long	0x90200 + gdt 	# gdt base = 0x90200 + [gdt]
-	
-.text
-endtext:
-.data
-enddata:
-.bss
-endbss:
+

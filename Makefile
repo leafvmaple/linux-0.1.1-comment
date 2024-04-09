@@ -29,10 +29,10 @@ OBJCOPY := objcopy
 #
 ROOT_DEV=/dev/hd6
 
-ARCHIVES=kernel/kernel.o mm/mm.o fs/fs.o
-DRIVERS =kernel/blk_drv/blk_drv.a kernel/chr_drv/chr_drv.a
-MATH	=kernel/math/math.a
-LIBS	=lib/lib.a
+ARCHIVES := kernel/kernel.o mm/mm.o fs/fs.o
+DRIVERS  := kernel/blk_drv/blk_drv.a kernel/chr_drv/chr_drv.a
+MATH	 := kernel/math/math.a
+LIBS	 := lib/lib.a
 
 .c.s:
 	$(CC) $(CFLAGS) -nostdinc -Iinclude -S -o $*.s $<
@@ -54,14 +54,8 @@ debug: linux.img
 
 boot/head.o: boot/head.s
 
-tools/system:	boot/head.o init/main.o \
-		$(ARCHIVES) $(DRIVERS) $(MATH) $(LIBS)
-	$(LD) $(LDFLAGS) boot/head.o init/main.o \
-	$(ARCHIVES) \
-	$(DRIVERS) \
-	$(MATH) \
-	$(LIBS) \
-	-o tools/system > System.map
+tools/system: boot/head.o init/main.o $(ARCHIVES) $(DRIVERS) $(MATH) $(LIBS)
+	$(LD) $(LDFLAGS) boot/head.o init/main.o $(ARCHIVES) $(DRIVERS) $(MATH) $(LIBS) -o tools/system > System.map
 
 kernel/math/math.a:
 	(cd kernel/math; make)
@@ -84,8 +78,7 @@ fs/fs.o:
 lib/lib.a:
 	(cd lib; make)
 
-boot/setup: boot/setup.s
-	$(CC) $(CFLAGS) -c -Os -nostdinc -o $@.o $<
+boot/setup: boot/setup.o
 	$(LD) $(LDFLAGS) -N -e start -Ttext 0x0 $@.o -o $@
 	$(OBJDUMP) -S $@ > $@.gas
 
@@ -127,7 +120,7 @@ dep:
 	(cd mm; make dep)
 
 ### Dependencies:
-init/main.o : init/main.c include/unistd.h include/sys/stat.h \
+init/main.o: init/main.c include/unistd.h include/sys/stat.h \
   include/sys/types.h include/sys/times.h include/sys/utsname.h \
   include/utime.h include/time.h include/linux/tty.h include/termios.h \
   include/linux/sched.h include/linux/head.h include/linux/fs.h \
