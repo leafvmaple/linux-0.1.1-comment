@@ -1,15 +1,14 @@
 CC := gcc
 CFLAGS := -O -m32 -Wall -fstrength-reduce -fomit-frame-pointer -finline-functions -nostdinc -I../include
-AS  := gas
-AR  := gar
-LD  := gld
+LD  := ld
+LDFLAGS := -m elf_i386 -nostdlib
 CPP	:= gcc -E -nostdinc -I../include
 
 .c.o:
 	$(CC) $(CFLAGS) \
 	-c -o $*.o $<
 .s.o:
-	$(AS) -o $*.o $<
+	$(CC) $(CFLAGS) -c -Os -o $*.o $<
 .c.s:
 	$(CC) $(CFLAGS) \
 	-S -o $*.s $<
@@ -19,7 +18,7 @@ OBJS := memory.o page.o
 all: mm.o
 
 mm.o: $(OBJS)
-	$(LD) -r -o mm.o $(OBJS)
+	$(LD) $(LDFLAGS) -r -o mm.o $^
 
 clean:
 	rm -f core *.o *.a tmp_make

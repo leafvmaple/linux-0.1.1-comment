@@ -29,7 +29,8 @@ OBJCOPY := objcopy
 #
 ROOT_DEV=/dev/hd6
 
-ARCHIVES := kernel/kernel.o mm/mm.o fs/fs.o
+#ARCHIVES := kernel/kernel.o mm/mm.o fs/fs.o
+ARCHIVES := 
 DRIVERS  := kernel/blk_drv/blk_drv.a kernel/chr_drv/chr_drv.a
 MATH	 := kernel/math/math.a
 LIBS	 := lib/lib.a
@@ -42,6 +43,8 @@ LIBS	 := lib/lib.a
 	$(CC) $(CFLAGS) -I$(dir $@)  -c -Os -o $*.o $<
 .c.o:
 	$(CC) $(CFLAGS) -nostdinc -Iinclude -c -o $*.o $<
+
+all: linux.img
 
 linux.img: boot/bootsect.bin boot/setup.bin tools/system.bin
 	dd if=/dev/zero of=$@ count=8064
@@ -83,7 +86,7 @@ boot/bootsect: boot/bootsect.o
 	$(LD) $(LDFLAGS) -N -e _start -Ttext 0x0 $< -o $@
 	$(OBJDUMP) -S $@ > $@.gas
 
-tools/system: boot/head.o init/main.o# $(ARCHIVES) $(DRIVERS) $(MATH) $(LIBS)
+tools/system: boot/head.o init/main.o $(ARCHIVES)#  $(DRIVERS) $(MATH) $(LIBS)
 	$(LD) $(LDFLAGS) -N -Ttext 0x0 $^ -o $@ > System.map
 	$(OBJDUMP) -S $@ > $@.gas
 

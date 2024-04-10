@@ -51,8 +51,8 @@ current->start_code + current->end_code)
 
 static long HIGH_MEMORY = 0;
 
-#define copy_page(from,to) \
-__asm__("cld ; rep ; movsl"::"S" (from),"D" (to),"c" (1024):"cx","di","si")
+#define copy_page(from, to) \
+__asm__("cld ; rep ; movsl"::"S"(from), "D"(to), "c"(1024):)
 
 static unsigned char mem_map [ PAGING_PAGES ] = {0, };
 
@@ -76,8 +76,13 @@ unsigned long get_free_page(void)
 		"1:"
 		: "=a" (__res)
 		: "0" (0), "i"(LOW_MEM), "c"(PAGING_PAGES), "D"(mem_map + PAGING_PAGES - 1)
-		: "di","cx","dx");
+		:);
 	return __res;
+}
+
+volatile void panic(const char * s)
+{
+	for(;;);
 }
 
 /*
@@ -218,7 +223,7 @@ unsigned long put_page(unsigned long page,unsigned long address)
 
 void un_wp_page(unsigned long * table_entry)
 {
-	unsigned long old_page,new_page;
+	unsigned long old_page, new_page;
 
 	old_page = 0xfffff000 & *table_entry;
 	if (old_page >= LOW_MEM && mem_map[MAP_NR(old_page)]==1) {
@@ -232,8 +237,8 @@ void un_wp_page(unsigned long * table_entry)
 		mem_map[MAP_NR(old_page)]--;
 	*table_entry = new_page | 7;
 	invalidate();
-	copy_page(old_page,new_page);
-}	
+	copy_page(old_page, new_page);
+}
 
 /*
  * This routine handles present pages, when users try to write
