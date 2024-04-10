@@ -1,3 +1,4 @@
+#include <asm.h>
 #
 #	setup.s		(C) 1991 Linus Torvalds
 #
@@ -198,23 +199,14 @@ empty_8042:
 	ret
 
 gdt:
-	.word	0,0,0,0		# dummy
-
-	.word	0x07FF		# 8Mb - limit=2047 (2048*4096=8Mb)
-	.word	0x0000		# base address=0
-	.word	0x9A00		# code read/exec
-	.word	0x00C0		# granularity=4096, 386
-
-	.word	0x07FF		# 8Mb - limit=2047 (2048*4096=8Mb)
-	.word	0x0000		# base address=0
-	.word	0x9200		# data read/write
-	.word	0x00C0		# granularity=4096, 386
+	SEG_NULLASM								# dummy
+	SEG_ASM(STA_X|STA_R, 0x0, 0xffffffff)	# code seg for bootloader and kernel
+    SEG_ASM(STA_W, 0x0, 0xffffffff)			# data seg for bootloader and kernel
 
 idt_48:
-	.word	0			# idt limit=0
-	.word	0,0			# idt base=0L
+	.word 0			# idt limit=0
+	.word 0, 0		# idt base=0L
 
 gdt_48:
-	.word	0x800			# gdt limit=2048, 256 GDT entries
-	.long	0x90200 + gdt 	# gdt base = 0x90200 + [gdt]
-
+	.word 0x800					# gdt limit=2048, 256 GDT entries
+	.long SETUPSEG << 4 + gdt	# gdt base = 0x90200 + [gdt]

@@ -38,7 +38,8 @@ LIBS	 := lib/lib.a
 	$(CC) $(CFLAGS) -nostdinc -Iinclude -S -o $*.s $<
 .s.o:
 	$(CC) $(CFLAGS) -c -Os -o $*.o $<
-
+.S.o:
+	$(CC) $(CFLAGS) -I$(dir $@)  -c -Os -o $*.o $<
 .c.o:
 	$(CC) $(CFLAGS) -nostdinc -Iinclude -c -o $*.o $<
 
