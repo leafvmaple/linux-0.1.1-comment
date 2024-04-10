@@ -1,4 +1,4 @@
-#include <asm.h>
+#include "asm.h"
 #
 #	setup.s		(C) 1991 Linus Torvalds
 #
@@ -198,10 +198,10 @@ empty_8042:
 	jnz	 empty_8042		# yes - loop
 	ret
 
-gdt:
+gdt:					# seg for bootloader and kernel
 	SEG_NULLASM								# dummy
-	SEG_ASM(STA_X|STA_R, 0x0, 0xffffffff)	# code seg for bootloader and kernel
-    SEG_ASM(STA_W, 0x0, 0xffffffff)			# data seg for bootloader and kernel
+	SEG_ASM(STA_X|STA_R, 0x0, 0x7fffff)		# code, limit=8MB
+    SEG_ASM(STA_W, 0x0, 0x7fffff)			# data, limit=8MB		
 
 idt_48:
 	.word 0			# idt limit=0

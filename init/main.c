@@ -109,8 +109,9 @@ static long main_memory_start = 0;
 
 struct drive_info { char dummy[32]; } drive_info;
 
-void main(void)		/* This really IS void, no error here. */
-{			/* The startup routine assumes (well, ...) this */
+void main(void)
+{
+/* The startup routine assumes (well, ...) this */
 /*
  * Interrupts are still disabled. Do necessary setups, then
  * enable them
@@ -131,7 +132,7 @@ void main(void)		/* This really IS void, no error here. */
 #ifdef RAMDISK
 	main_memory_start += rd_init(main_memory_start, RAMDISK*1024);
 #endif
-	// mem_init(main_memory_start,memory_end);
+	mem_init(main_memory_start, memory_end);
 	// trap_init();
 	// blk_dev_init();
 	// chr_dev_init();

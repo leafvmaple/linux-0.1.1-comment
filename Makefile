@@ -54,8 +54,6 @@ debug: linux.img
 	sleep 2
 	$(TERMINAL) -e "gdb -q -x tools/gdbinit"
 
-boot/head.o: boot/head.s
-
 kernel/math/math.a:
 	(cd kernel/math; make)
 
@@ -136,3 +134,8 @@ init/main.o: init/main.c #include/unistd.h include/sys/stat.h \
 
 bochs: linux.img
 	bochs -q -f bochsrc.bxrc
+
+gdb: linux.img
+	$(TERMINAL) -e "bochs -q -f bochsrc.bxrc"
+	sleep 2
+	gdb -q -x tools/gdbinit

@@ -13,7 +13,7 @@
  * the page directory.
  */
 .text
-.globl _idt, _gdt, _pg_dir
+.globl _idt, _gdt, _pg_dir, _tmp_floppy_area
 .code32
 _pg_dir:
 startup_32:
@@ -47,7 +47,24 @@ startup_32:
 /* "orl $0x10020,%eax" here for 486 might be good */
 	orl  $2         , %eax	# set MP TODO: Why
 	movl %eax       , %cr0
+	call check_x87
 	jmp  after_page_tables
+
+/*
+ * We depend on ET to be correct. This checks for 287/387.
+ */
+check_x87:
+	fninit
+	fstsw %ax
+	cmpb  $0  , %al
+	je    1f			/* no coprocessor: have to set bits */
+	movl  %cr0, %eax
+	xorl  $6  , %eax	/* reset MP, set EM */
+	movl  %eax, %cr0
+	ret
+.align 2
+1:	.byte 0xDB, 0xE4	/* fsetpm for 287, ignored by 387 */
+	ret
 
 /*
  *  setup_idt
@@ -60,6 +77,7 @@ startup_32:
  *  sure everything is ok. This routine will be over-
  *  written by the page tables.
  */
+/* TODO */
 setup_idt:
 	lea  ignore_int , %edx
 	movl $0x00080000, %eax
@@ -67,13 +85,13 @@ setup_idt:
 	movw $0x8E00    , %dx	/* interrupt gate - dpl=0, present */
 
 	lea _idt, %edi
-	mov $256, %ecx			# 256 Interupt gates
+	mov $256, %ecx
 rp_sidt:
 	movl %eax, (%edi)
 	movl %edx, 4(%edi)
-	addl $8  , %edi			# Sizeof Interupt gates is 8 bytes
-	dec  %ecx
-	jne  rp_sidt
+	addl $8, %edi
+	dec %ecx
+	jne rp_sidt
 	lidt idt_descr
 	ret
 
@@ -109,6 +127,13 @@ pg2:
 pg3:
 
 .org 0x5000
+/*
+ * tmp_floppy_area is used by the floppy-driver when DMA cannot
+ * reach to a buffer-block. It needs to be aligned, so that it isn't
+ * on a 64kB border.
+ */
+_tmp_floppy_area:
+	.fill 1024,1,0
 
 after_page_tables:
 	pushl $0		# These are the parameters to main :-)
@@ -116,9 +141,9 @@ after_page_tables:
 	pushl $0
 	pushl $L6		# return address for main, if it decides to.
 	pushl $main
-	jmp   setup_paging
+	jmp setup_paging
 L6:
-	jmp L6		# main should never return here, but
+	jmp L6			# main should never return here, but
 				# just in case, we know what happens.
 
 /* This is the default interrupt "handler" :-) */
@@ -174,46 +199,49 @@ ignore_int:
  */
 .align 2
 setup_paging:
-	movl $1024 * 5, %ecx		/* 5 pages - pg_dir + 4 page tables */
-	xorl %eax     , %eax
-	xorl %edi     , %edi		/* pg_dir is at 0x000 */
-	cld; rep; stosl				# Clear 5 pages
-	movl $pg0 + 7, _pg_dir		/* set present bit/user r/w */
-	movl $pg1 + 7, _pg_dir + 4	/*  --------- " " --------- */
-	movl $pg2 + 7, _pg_dir + 8	/*  --------- " " --------- */
-	movl $pg3 + 7, _pg_dir + 12	/*  --------- " " --------- */
-	movl $pg3 + 4092, %edi
-	movl $0xfff007  , %eax		# 16Mb - 4096 + 7 (r/w user,p), 4(page tables) * 1024(address per table) * 4K (page)
+	movl $1024*5,%ecx		/* 5 pages - pg_dir+4 page tables */
+	xorl %eax,%eax
+	xorl %edi,%edi			/* pg_dir is at 0x000 */
+	cld;rep;stosl
+	movl $pg0+7,_pg_dir		/* set present bit/user r/w */
+	movl $pg1+7,_pg_dir+4		/*  --------- " " --------- */
+	movl $pg2+7,_pg_dir+8		/*  --------- " " --------- */
+	movl $pg3+7,_pg_dir+12		/*  --------- " " --------- */
+	movl $pg3+4092,%edi
+	movl $0xfff007,%eax		/*  16Mb - 4096 + 7 (r/w user,p) */
 	std
-1:	stosl						/* fill pages backwards - more efficient :-) */
-	subl $0x1000, %eax
-	jge  1b
-	xorl %eax, %eax				/* pg_dir is at 0x0000 */
-	movl %eax, %cr3				/* cr3 = 0x0 - page directory start */
-	movl %cr0, %eax
-	orl  $0x80000000, %eax
-	movl %eax, %cr0				/* set paging (PG) bit */
-	ret							/* this also flushes prefetch-queue */
+1:	stosl			/* fill pages backwards - more efficient :-) */
+	subl $0x1000,%eax
+	jge 1b
+	xorl %eax,%eax		/* pg_dir is at 0x0000 */
+	movl %eax,%cr3		/* cr3 - page directory start */
+	movl %cr0,%eax
+	orl $0x80000000,%eax
+	movl %eax,%cr0		/* set paging (PG) bit */
+	ret			/* this also flushes prefetch-queue */
 
 .align 2
 .word 0
 idt_descr:
-	.word 256 * 8 - 1		# sizeof(_idt) - 1, idt contains 256 entries
+	.word 256 * 8 - 1		# idt contains 256 entries
 	.long _idt
 .align 2
 .word 0
 gdt_descr:
-	.word 256 * 8 - 1		# sizeof(_gdt) - 1
-	.long _gdt
+	.word 256 * 8 - 1		# sizeof(_gdt) - 1, so does gdt (not that that's any
+	.long _gdt				# magic number, but it works for me :^)
 
 	.align 8
 _idt:
 	.fill 256, 8, 0		# idt is uninitialized
 
 _gdt:
-	SEG_NULLASM								# NULL descriptor
-	SEG_ASM(STA_X|STA_R, 0x0, 0xffffffff)	# code seg for bootloader and kernel, 16Mb limit=0x0FFF, base=0x0000, read/exec, granularity=4096
-    SEG_ASM(STA_W, 0x0, 0xffffffff)			# data seg for bootloader and kernel, 16Mb limit=0x0FFF, base=0x0000, read/write, granularity=4096
-	SEG_NULLASM								# TEMPORARY - don't use 
+	SEG_NULLASM								# dummy
+	SEG_ASM(STA_X|STA_R, 0x0, 0xffffffff)	# code seg for bootloader and kernel
+    SEG_ASM(STA_W, 0x0, 0xffffffff)			# data seg for bootloader and kernel
 
-	.fill 252, 8, 0							/* space for LDT's and TSS's etc */
+#	.quad 0x0000000000000000	/* NULL descriptor */
+#	.quad 0x00c09a0000000fff	/* 16Mb limit=0x0FFF, base=0x0000, read/exec, granularity=4096, 386 */
+#	.quad 0x00c0920000000fff	/* 16Mb limit=0x0FFF, base=0x0000, read/write, granularity=4096, 386 */
+#	.quad 0x0000000000000000	/* TEMPORARY - don't use */
+	.fill 252, 8, 0			/* space for LDT's and TSS's etc */

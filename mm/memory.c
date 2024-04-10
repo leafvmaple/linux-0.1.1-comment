@@ -54,7 +54,7 @@ static long HIGH_MEMORY = 0;
 #define copy_page(from,to) \
 __asm__("cld ; rep ; movsl"::"S" (from),"D" (to),"c" (1024):"cx","di","si")
 
-static unsigned char mem_map [ PAGING_PAGES ] = {0,};
+static unsigned char mem_map [ PAGING_PAGES ] = {0, };
 
 /*
  * Get physical address of first (actually last :-) free page, and mark it
@@ -62,24 +62,22 @@ static unsigned char mem_map [ PAGING_PAGES ] = {0,};
  */
 unsigned long get_free_page(void)
 {
-register unsigned long __res asm("ax");
-
-__asm__("std ; repne ; scasb\n\t"
-	"jne 1f\n\t"
-	"movb $1,1(%%edi)\n\t"
-	"sall $12,%%ecx\n\t"
-	"addl %2,%%ecx\n\t"
-	"movl %%ecx,%%edx\n\t"
-	"movl $1024,%%ecx\n\t"
-	"leal 4092(%%edx),%%edi\n\t"
-	"rep ; stosl\n\t"
-	"movl %%edx,%%eax\n"
-	"1:"
-	:"=a" (__res)
-	:"0" (0),"i" (LOW_MEM),"c" (PAGING_PAGES),
-	"D" (mem_map+PAGING_PAGES-1)
-	:"di","cx","dx");
-return __res;
+	register unsigned long __res asm("ax");
+	__asm__("std; repne; scasb\n\t"
+		"jne 1f\n\t"
+		"movb $1, 1(%%edi)\n\t"
+		"sall $12, %%ecx\n\t"
+		"addl %2, %%ecx\n\t"
+		"movl %%ecx, %%edx\n\t"
+		"movl $1024, %%ecx\n\t"
+		"leal 4092(%%edx), %%edi\n\t"
+		"rep; stosl\n\t"
+		"movl %%edx, %%eax\n"
+		"1:"
+		: "=a" (__res)
+		: "0" (0), "i"(LOW_MEM), "c"(PAGING_PAGES), "D"(mem_map + PAGING_PAGES - 1)
+		: "di","cx","dx");
+	return __res;
 }
 
 /*
